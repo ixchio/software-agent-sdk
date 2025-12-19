@@ -99,6 +99,11 @@ class BaseIntegrationTest(ABC):
             self.workspace, f"{self.instance_id}_agent_logs.txt"
         )
 
+        # Early stopping support - must be initialized BEFORE LocalConversation
+        # since the callback may access these attributes
+        self.early_stopper: EarlyStopperBase | None = None
+        self.early_stop_result: EarlyStopResult | None = None
+
         self.conversation: LocalConversation = LocalConversation(
             agent=self.agent,
             workspace=self.workspace,
@@ -106,10 +111,6 @@ class BaseIntegrationTest(ABC):
             visualizer=DefaultConversationVisualizer(),  # Use default visualizer
             max_iteration_per_run=100,
         )
-
-        # Early stopping support
-        self.early_stopper: EarlyStopperBase | None = None
-        self.early_stop_result: EarlyStopResult | None = None
 
     def conversation_callback(self, event: Event):
         """Callback to collect conversation events."""
