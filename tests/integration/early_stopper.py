@@ -326,8 +326,9 @@ Respond with EXACTLY one word: STOP or CONTINUE
             response_text = ""
             if response.message.content:
                 for content in response.message.content:
-                    if hasattr(content, "text"):
-                        response_text = content.text.strip().upper()
+                    text = getattr(content, "text", None)
+                    if text is not None:
+                        response_text = text.strip().upper()
                         break
 
             if "STOP" in response_text:
