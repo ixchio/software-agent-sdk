@@ -35,8 +35,14 @@ class RedundantFileCreationPruner(EarlyStopperBase):
     and optionally a README). Creating more indicates redundant files.
     """
 
-    def __init__(self, max_creates: int = 2):
+    def __init__(
+        self,
+        max_creates: int = 2,
+        allowed_patterns: list[str] | None = None,
+    ):
         self.max_creates = max_creates
+        # Patterns for auto-generated or framework files to ignore
+        self.allowed_patterns = allowed_patterns or []
 
     def check(self, events: list[Event]) -> EarlyStopResult:
         """Check if too many file create operations were performed."""
@@ -57,8 +63,12 @@ class RedundantFileCreationPruner(EarlyStopperBase):
                     event.action, FileEditorAction
                 ):
                     if event.action.command == "create":
+                        path = event.action.path
+                        # Skip files matching allowed patterns (auto-generated, etc.)
+                        if any(pattern in path for pattern in self.allowed_patterns):
+                            continue
                         create_count += 1
-                        created_files.append(event.action.path)
+                        created_files.append(path)
 
         if create_count > self.max_creates:
             return EarlyStopResult(
@@ -80,8 +90,14 @@ class NoRedundantFilesTest(BaseIntegrationTest):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Set up early stopper
-        self.early_stopper = RedundantFileCreationPruner(max_creates=2)
+        # Set up early stopper with patterns for auto-generated files
+        self.early_stopper = RedundantFileCreationPruner(
+            max_creates=3,  # Allow training script, README, and test file
+            allowed_patterns=[
+                ".openhands/",  # Auto-generated framework files
+                "__pycache__/",  # Python cache
+            ],
+        )
 
     @property
     def tools(self) -> list[Tool]:
