@@ -11,7 +11,6 @@ from tests.integration.base import TestResult
 from tests.integration.behavior_utils import (
     get_conversation_summary,
 )
-from tests.integration.early_stopper import EarlyStopperBase
 from tests.integration.utils.behavior_helpers import (
     SoftwareAgentSDKBehaviorTest,
     append_environment_tips,
@@ -33,14 +32,6 @@ class NoOververificationTest(SoftwareAgentSDKBehaviorTest):
     """Ensure the agent updates truncation limit with scoped verification."""
 
     INSTRUCTION: str = INSTRUCTION
-
-    def get_early_stopper(self) -> EarlyStopperBase | None:
-        """No early stopper for this test.
-
-        Over-verification is a nuanced behavior that's better evaluated
-        by the final LLM judge rather than pattern-based pruning.
-        """
-        return None
 
     def verify_result(self) -> TestResult:
         conversation_summary = get_conversation_summary(self.collected_events)
