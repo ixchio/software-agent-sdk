@@ -53,7 +53,7 @@ class LocalWorkspace(BaseWorkspace):
             CommandResult: Result with stdout, stderr, exit_code, command, and
                 timeout_occurred
         """
-        logger.debug(f"Executing local bash command: {command} in {cwd}")
+        logger.debug("Executing local bash command: %s in %s", command, cwd)
         result = execute_command(
             command,
             cwd=str(cwd) if cwd is not None else str(self.working_dir),
@@ -88,7 +88,7 @@ class LocalWorkspace(BaseWorkspace):
         source = Path(source_path)
         destination = Path(destination_path)
 
-        logger.debug(f"Local file upload: {source} -> {destination}")
+        logger.debug("Local file upload: %s -> %s", source, destination)
 
         try:
             # Ensure destination directory exists
@@ -105,7 +105,7 @@ class LocalWorkspace(BaseWorkspace):
             )
 
         except Exception as e:
-            logger.error(f"Local file upload failed: {e}")
+            logger.error("Local file upload failed: %s", e)
             return FileOperationResult(
                 success=False,
                 source_path=str(source),
@@ -133,7 +133,7 @@ class LocalWorkspace(BaseWorkspace):
         source = Path(source_path)
         destination = Path(destination_path)
 
-        logger.debug(f"Local file download: {source} -> {destination}")
+        logger.debug("Local file download: %s -> %s", source, destination)
 
         try:
             # Ensure destination directory exists

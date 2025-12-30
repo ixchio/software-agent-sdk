@@ -391,6 +391,6 @@ class DockerWorkspace(RemoteWorkspace):
         if result.returncode != 0:
             raise RuntimeError(f"Failed to resume container: {result.stderr}")
 
-        # Wait for health after resuming
-        self._wait_for_health(timeout=30.0)
+        # Wait for health after resuming (use same timeout as initial startup)
+        self._wait_for_health(timeout=120.0)
         logger.info("Container resumed: %s", self._container_id)
