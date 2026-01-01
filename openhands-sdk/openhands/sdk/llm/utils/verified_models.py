@@ -1,5 +1,6 @@
 VERIFIED_OPENAI_MODELS = [
     "gpt-5.2",
+    "gpt-5.2-codex",
     "gpt-5.1",
     "gpt-5.1-codex-max",
     "gpt-5.1-codex",
@@ -42,13 +43,6 @@ VERIFIED_MISTRAL_MODELS = [
     "devstral-medium-2512",
 ]
 
-# DeepSeek models - see https://api-docs.deepseek.com/news/news251201
-VERIFIED_DEEPSEEK_MODELS = [
-    "deepseek-chat",
-    "deepseek-chat-v3.2",
-    "deepseek-reasoner",
-]
-
 VERIFIED_OPENHANDS_MODELS = [
     "claude-opus-4-5-20251101",
     "claude-sonnet-4-5-20250929",
@@ -58,7 +52,6 @@ VERIFIED_OPENHANDS_MODELS = [
     "gpt-5.1",
     "gemini-3-pro-preview",
     "deepseek-chat",
-    "deepseek-chat-v3.2",
     "kimi-k2-thinking",
     "devstral-medium-2512",
     "devstral-2512",
@@ -70,5 +63,4 @@ VERIFIED_MODELS = {
     "anthropic": VERIFIED_ANTHROPIC_MODELS,
     "openai": VERIFIED_OPENAI_MODELS,
     "mistral": VERIFIED_MISTRAL_MODELS,
-    "deepseek": VERIFIED_DEEPSEEK_MODELS,
 }
