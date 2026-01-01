@@ -140,7 +140,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
 
         assert self._runtime_id and self._runtime_url, "Runtime ID/URL not set"
         self._wait_until_runtime_alive()
-        logger.info("Runtime ready at %s", self._runtime_url)
+        logger.info(f"Runtime ready at {self._runtime_url}")
         self.host = self._runtime_url.rstrip("/")
         self.api_key = self._session_api_key
         # Reset HTTP client with new host and API key
@@ -159,7 +159,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
             )
             data = resp.json()
             status = data.get("status")
-            logger.info("Runtime status: %s", status)
+            logger.info(f"Runtime status: {status}")
 
             if status in ("running", "paused"):
                 self._parse_runtime_response(resp)
@@ -167,7 +167,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
                     try:
                         self._resume_runtime()
                     except Exception as e:
-                        logger.error("Resume failed: %s", e)
+                        logger.error(f"Resume failed: {e}")
                         return False
                 return True
             return False
@@ -206,8 +206,8 @@ class APIRemoteWorkspace(RemoteWorkspace):
         if self.resource_factor != 1:
             payload["resource_factor"] = self.resource_factor
 
-        logger.info("Starting runtime with %s", self.server_image)
-        logger.info("Payload: %s", payload)
+        logger.info(f"Starting runtime with {self.server_image}")
+        logger.info(f"Payload: {payload}")
         resp = self._send_api_request(
             "POST",
             f"{self.runtime_api_url}/start",
@@ -216,7 +216,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
             headers=self._api_headers,
         )
         self._parse_runtime_response(resp)
-        logger.info("Runtime %s at %s", self._runtime_id, self._runtime_url)
+        logger.info(f"Runtime {self._runtime_id} at {self._runtime_url}")
 
     def _resume_runtime(self) -> None:
         """Resume a paused runtime."""
@@ -240,7 +240,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
         if not self._runtime_id:
             raise RuntimeError("Cannot pause: runtime is not running")
 
-        logger.info("Pausing runtime %s", self._runtime_id)
+        logger.info(f"Pausing runtime {self._runtime_id}")
         self._send_api_request(
             "POST",
             f"{self.runtime_api_url}/pause",
@@ -248,7 +248,7 @@ class APIRemoteWorkspace(RemoteWorkspace):
             timeout=30.0,
             headers=self._api_headers,
         )
-        logger.info("Runtime paused: %s", self._runtime_id)
+        logger.info(f"Runtime paused: {self._runtime_id}")
 
     def resume(self) -> None:
         """Resume a paused runtime.
@@ -261,10 +261,10 @@ class APIRemoteWorkspace(RemoteWorkspace):
         if not self._runtime_id:
             raise RuntimeError("Cannot resume: runtime is not running")
 
-        logger.info("Resuming runtime %s", self._runtime_id)
+        logger.info(f"Resuming runtime {self._runtime_id}")
         self._resume_runtime()
         self._wait_until_runtime_alive()
-        logger.info("Runtime resumed: %s", self._runtime_id)
+        logger.info(f"Runtime resumed: {self._runtime_id}")
 
     def _parse_runtime_response(self, response: httpx.Response) -> None:
         """Parse the runtime response and extract connection info."""

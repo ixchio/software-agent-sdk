@@ -133,7 +133,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         self._sandbox_id = data["id"]
         self._session_api_key = data.get("session_api_key")
         logger.info(
-            "Sandbox %s created, waiting for it to be ready...", self._sandbox_id
+            f"Sandbox {self._sandbox_id} created, waiting for it to be ready..."
         )
 
         # Wait for sandbox to become RUNNING
@@ -146,7 +146,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
                 f"Agent server URL not found in sandbox {self._sandbox_id}"
             )
 
-        logger.info("Sandbox ready at %s", agent_server_url)
+        logger.info(f"Sandbox ready at {agent_server_url}")
 
         # Set host and api_key for RemoteWorkspace operations
         self.host = agent_server_url.rstrip("/")
@@ -182,7 +182,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
 
         sandbox = sandboxes[0]
         status = sandbox.get("status")
-        logger.info("Sandbox status: %s", status)
+        logger.info(f"Sandbox status: {status}")
 
         if status == "RUNNING":
             # Update session_api_key and exposed_urls from response
@@ -208,7 +208,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
             raise RuntimeError("Sandbox resuming, waiting for RUNNING status")
 
         else:
-            logger.warning("Unknown sandbox status: %s", status)
+            logger.warning(f"Unknown sandbox status: {status}")
             raise RuntimeError(f"Unknown sandbox status: {status}")
 
     def _check_agent_server_health(self, agent_server_url: str) -> None:
@@ -231,7 +231,7 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         if not self._sandbox_id:
             return
 
-        logger.info("Resuming sandbox %s...", self._sandbox_id)
+        logger.info(f"Resuming sandbox {self._sandbox_id}...")
         self._send_api_request(
             "POST",
             f"{self.cloud_api_url}/api/v1/sandboxes/{self._sandbox_id}/resume",
@@ -274,14 +274,14 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         if not self._sandbox_id:
             raise RuntimeError("Cannot resume: sandbox is not running")
 
-        logger.info("Resuming sandbox %s", self._sandbox_id)
+        logger.info(f"Resuming sandbox {self._sandbox_id}")
         self._resume_sandbox()
         self._wait_until_sandbox_ready()
-        logger.info("Sandbox resumed: %s", self._sandbox_id)
+        logger.info(f"Sandbox resumed: {self._sandbox_id}")
 
     def _send_api_request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         """Send an API request to the Cloud API with error handling."""
-        logger.debug("Sending %s request to %s", method, url)
+        logger.debug(f"Sending {method} request to {url}")
 
         # Ensure headers include API key
         headers = kwargs.pop("headers", {})
@@ -297,9 +297,9 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
         except httpx.HTTPStatusError:
             try:
                 error_detail = response.json()
-                logger.error("Cloud API request failed: %s", error_detail)
+                logger.error(f"Cloud API request failed: {error_detail}")
             except Exception:
-                logger.error("Cloud API request failed: %s", response.text)
+                logger.error(f"Cloud API request failed: {response.text}")
             raise
 
         return response
@@ -311,19 +311,19 @@ class OpenHandsCloudWorkspace(RemoteWorkspace):
 
         try:
             if self.keep_alive:
-                logger.info("Keeping sandbox %s alive", self._sandbox_id)
+                logger.info(f"Keeping sandbox {self._sandbox_id} alive")
                 return
 
-            logger.info("Deleting sandbox %s...", self._sandbox_id)
+            logger.info(f"Deleting sandbox {self._sandbox_id}...")
             self._send_api_request(
                 "DELETE",
                 f"{self.cloud_api_url}/api/v1/sandboxes",
                 params={"sandbox_id": self._sandbox_id},
                 timeout=30.0,
             )
-            logger.info("Sandbox %s deleted", self._sandbox_id)
+            logger.info(f"Sandbox {self._sandbox_id} deleted")
         except Exception as e:
-            logger.warning("Cleanup error: %s", e)
+            logger.warning(f"Cleanup error: {e}")
         finally:
             self._sandbox_id = None
             self._session_api_key = None
