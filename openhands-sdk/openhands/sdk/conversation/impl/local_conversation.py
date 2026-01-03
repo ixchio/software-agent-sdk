@@ -136,9 +136,9 @@ class LocalConversation(BaseConversation):
             stuck_detection=stuck_detection,
         )
 
-        # Default callback: persist every event to state and update caches
+        # Default callback: persist every event to state
         def _default_callback(e):
-            self._state.append_event(e)
+            self._state.events.append(e)
 
         self._hook_processor = None
         hook_callback = None

@@ -2,7 +2,7 @@ import os
 import re
 import sys
 from abc import ABC, abstractmethod
-from collections.abc import Generator, Iterable
+from collections.abc import Generator, Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
@@ -303,7 +303,7 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
     def resolve_diff_from_deserialized(
         self,
         persisted: "AgentBase",
-        used_tools: set[str] | None = None,
+        events: "Sequence[Any] | None" = None,
     ) -> "AgentBase":
         """
         Return a new AgentBase instance equivalent to `persisted` but with
@@ -311,10 +311,8 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
 
         Args:
             persisted: The persisted agent from the conversation state.
-            used_tools: Optional set of tool names that were actually used in
-                the conversation history. If provided, only these tools are
-                required to be present in the runtime agent. New tools can be
-                added freely.
+            events: Optional event sequence to scan for used tools if tool
+                names don't match. Only scanned when needed (O(n) fallback).
         """
         if persisted.__class__ is not self.__class__:
             raise ValueError(
@@ -353,10 +351,22 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
         runtime_names = {tool.name for tool in self.tools}
         persisted_names = {tool.name for tool in persisted.tools}
 
-        # Relaxed tool matching: only fail if tools that were actually USED
-        # in history are missing. Allow adding new tools freely.
-        if used_tools is not None:
-            # Only check that used tools are present in runtime
+        # If tool names match exactly, no need to check event history
+        if runtime_names == persisted_names:
+            # Tools unchanged, proceed normally
+            pass
+        elif events is not None:
+            # Tool names differ - scan events to find which tools were actually used
+            # This is O(n) but only happens when tools change
+            from openhands.sdk.event import ActionEvent
+
+            used_tools = {
+                event.tool_name
+                for event in events
+                if isinstance(event, ActionEvent) and event.tool_name
+            }
+
+            # Only require tools that were actually used in history
             missing_used_tools = used_tools - runtime_names
             if missing_used_tools:
                 raise ValueError(
@@ -367,24 +377,21 @@ class AgentBase(DiscriminatedUnionMixin, ABC):
             # Update tools to match runtime (allows new tools to be added)
             updates["tools"] = self.tools
         else:
-            # Legacy behavior: require exact match when used_tools not provided
-            if runtime_names != persisted_names:
-                missing_in_runtime = persisted_names - runtime_names
-                missing_in_persisted = runtime_names - persisted_names
-                error_msg = "Tools don't match between runtime and persisted agents."
-                if missing_in_runtime:
-                    error_msg += f" Missing in runtime: {sorted(missing_in_runtime)}."
-                if missing_in_persisted:
-                    error_msg += (
-                        f" Missing in persisted: {sorted(missing_in_persisted)}."
-                    )
-                raise ValueError(error_msg)
+            # No events provided - strict matching (legacy behavior)
+            missing_in_runtime = persisted_names - runtime_names
+            missing_in_persisted = runtime_names - persisted_names
+            error_msg = "Tools don't match between runtime and persisted agents."
+            if missing_in_runtime:
+                error_msg += f" Missing in runtime: {sorted(missing_in_runtime)}."
+            if missing_in_persisted:
+                error_msg += f" Missing in persisted: {sorted(missing_in_persisted)}."
+            raise ValueError(error_msg)
 
         reconciled = persisted.model_copy(update=updates)
 
-        # Validate agent equality - when used_tools is provided, we exclude tools
-        # from comparison since we already validated tool requirements above
-        exclude_fields = {"tools"} if used_tools is not None else set()
+        # Validate agent equality - exclude tools from comparison since we
+        # already validated tool requirements above
+        exclude_fields = {"tools"} if events is not None else set()
         self_dump = self.model_dump(exclude_none=True, exclude=exclude_fields)
         reconciled_dump = reconciled.model_dump(
             exclude_none=True, exclude=exclude_fields

@@ -213,6 +213,8 @@ def test_conversation_fails_when_used_tool_is_missing():
     This is the core correctness requirement: if a tool was actually used
     in the conversation history, it MUST be present when resuming.
     """
+    from openhands.sdk.event import ActionEvent
+
     with tempfile.TemporaryDirectory() as temp_dir:
         # Create conversation with two tools
         original_tools = [
@@ -233,9 +235,22 @@ def test_conversation_fails_when_used_tool_is_missing():
         # Initialize the agent to get actual tool definitions
         conversation.agent.init_state(conversation.state, lambda e: None)
 
-        # Simulate that TerminalTool was used by recording it in used_tool_names
-        # In real usage this happens via state.append_event() with ActionEvents
-        conversation.state.used_tool_names = {"TerminalTool"}
+        # Simulate that TerminalTool was used by adding an ActionEvent
+        from openhands.sdk.llm import MessageToolCall, TextContent
+
+        action_event = ActionEvent(
+            tool_name="TerminalTool",
+            tool_call_id="test-call-1",
+            thought=[TextContent(text="Running a command")],
+            tool_call=MessageToolCall(
+                id="test-call-1",
+                name="TerminalTool",
+                arguments="{}",
+                origin="completion",
+            ),
+            llm_response_id="test-response-1",
+        )
+        conversation.state.events.append(action_event)
 
         conversation_id = conversation.state.id
         del conversation

@@ -120,14 +120,6 @@ class ConversationState(OpenHandsModel):
         serialization_alias="secret_registry",
     )
 
-    # Cache of tool names that have been used in this conversation
-    # This is incrementally updated when events are appended and persisted
-    # with the state, avoiding O(n) iteration on resume
-    used_tool_names: set[str] = Field(
-        default_factory=set,
-        description="Set of tool names that have been used in this conversation",
-    )
-
     # ===== Private attrs (NOT Fields) =====
     _fs: FileStore = PrivateAttr()  # filestore for persistence
     _events: EventLog = PrivateAttr()  # now the storage for events
@@ -141,28 +133,9 @@ class ConversationState(OpenHandsModel):
         default_factory=FIFOLock
     )  # FIFO lock for thread safety
 
-    # ===== Public "events" facade (Sequence[Event]) =====
     @property
     def events(self) -> EventLog:
         return self._events
-
-    def append_event(self, event: Event) -> None:
-        """Append an event to the event log and update caches.
-
-        This method should be preferred over direct events.append() calls
-        as it maintains the used_tool_names cache for efficient conversation
-        resume operations.
-
-        Args:
-            event: The event to append to the log.
-        """
-        self._events.append(event)
-
-        # Update used_tool_names cache for ActionEvents
-        if isinstance(event, ActionEvent) and event.tool_name:
-            if event.tool_name not in self.used_tool_names:
-                # Use assignment to trigger autosave via __setattr__
-                self.used_tool_names = self.used_tool_names | {event.tool_name}
 
     @property
     def env_observation_persistence_dir(self) -> str | None:
@@ -230,22 +203,10 @@ class ConversationState(OpenHandsModel):
             state._fs = file_store
             state._events = EventLog(file_store, dir_path=EVENTS_DIR)
 
-            # Use persisted used_tool_names cache for O(1) lookup on resume.
-            # If the cache is empty but there are events, we need to backfill
-            # for backward compatibility with old persisted conversations.
-            used_tools = state.used_tool_names
-            if not used_tools and len(state._events) > 0:
-                # Backfill cache from event history (O(n) but only once)
-                logger.info("Backfilling used_tool_names cache from event history...")
-                for event in state._events:
-                    if isinstance(event, ActionEvent) and event.tool_name:
-                        used_tools = used_tools | {event.tool_name}
-                # Persist backfilled cache
-                state.used_tool_names = used_tools
-
-            # Reconcile agent config with deserialized one, passing used tools
+            # Reconcile agent config with deserialized one
+            # Pass event log so tool usage can be checked on-the-fly if needed
             resolved = agent.resolve_diff_from_deserialized(
-                state.agent, used_tools=used_tools
+                state.agent, events=state._events
             )
 
             # Commit reconciled agent (may autosave)
