@@ -3,7 +3,7 @@ import operator
 from collections.abc import Iterator
 from typing import SupportsIndex, overload
 
-from filelock import FileLock
+from filelock import BaseFileLock, FileLock
 
 from openhands.sdk.conversation.events_list_base import EventsListBase
 from openhands.sdk.conversation.persistence_const import (
@@ -25,7 +25,7 @@ class EventLog(EventsListBase):
     _fs: FileStore
     _dir: str
     _length: int
-    _lock: FileLock
+    _lock: BaseFileLock
 
     def __init__(self, fs: FileStore, dir_path: str = EVENTS_DIR) -> None:
         self._fs = fs
