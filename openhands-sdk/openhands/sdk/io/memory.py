@@ -52,3 +52,15 @@ class InMemoryFileStore(FileStore):
             logger.debug(f"Cleared in-memory file store: {path}")
         except Exception as e:
             logger.error(f"Error clearing in-memory file store: {str(e)}")
+
+    def exists(self, path: str) -> bool:
+        """Check if a file exists."""
+        if path in self.files:
+            return True
+        return any(f.startswith(path + "/") for f in self.files)
+
+    def get_absolute_path(self, path: str) -> str:
+        """Get absolute filesystem path (uses temp dir for lock files)."""
+        import tempfile
+
+        return os.path.join(tempfile.gettempdir(), "openhands_inmemory", path)

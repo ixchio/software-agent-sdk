@@ -117,3 +117,11 @@ class LocalFileStore(FileStore):
 
         except Exception as e:
             logger.error(f"Error clearing local file store: {str(e)}")
+
+    def exists(self, path: str) -> bool:
+        """Check if a file or directory exists."""
+        return os.path.exists(self.get_full_path(path))
+
+    def get_absolute_path(self, path: str) -> str:
+        """Get absolute filesystem path."""
+        return self.get_full_path(path)

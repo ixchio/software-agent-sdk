@@ -46,3 +46,25 @@ class FileStore(ABC):
         Args:
             path: The file or directory path to delete.
         """
+
+    @abstractmethod
+    def exists(self, path: str) -> bool:
+        """Check if a file or directory exists at the specified path.
+
+        Args:
+            path: The file or directory path to check.
+
+        Returns:
+            True if the path exists, False otherwise.
+        """
+
+    @abstractmethod
+    def get_absolute_path(self, path: str) -> str:
+        """Get the absolute filesystem path for a given relative path.
+
+        Args:
+            path: The relative path within the file store.
+
+        Returns:
+            The absolute path on the filesystem.
+        """
