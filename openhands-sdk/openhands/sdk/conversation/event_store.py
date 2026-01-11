@@ -158,7 +158,6 @@ class EventLog(EventsListBase):
         """
         # Preserve existing mappings
         existing_idx_to_id = dict(self._idx_to_id)
-        existing_id_to_idx = dict(self._id_to_idx)
 
         # Re-scan to pick up new events
         scanned_length = self._scan_and_build_index()
