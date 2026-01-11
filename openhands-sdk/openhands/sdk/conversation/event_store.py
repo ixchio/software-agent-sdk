@@ -152,25 +152,26 @@ class EventLog(EventsListBase):
         )
 
     def _sync_from_disk(self, disk_length: int) -> None:
-        """Sync state for events written by other processes."""
-        for idx in range(self._length, disk_length):
-            if idx in self._idx_to_id:
-                continue
-            try:
-                for p in self._fs.list(self._dir):
-                    name = p.rsplit("/", 1)[-1]
-                    if name.startswith(f"event-{idx:05d}-"):
-                        m = EVENT_NAME_RE.match(name)
-                        if m:
-                            evt_id = m.group("event_id")
-                            self._idx_to_id[idx] = evt_id
-                            self._id_to_idx.setdefault(evt_id, idx)
-                        break
-            except FileNotFoundError:
-                pass  # Directory doesn't exist - skip
-            except Exception as e:
-                logger.warning("Error syncing event at index %d: %s", idx, e)
-        self._length = disk_length
+        """Sync state for events written by other processes.
+
+        Preserves existing index mappings and only scans new events.
+        """
+        # Preserve existing mappings
+        existing_idx_to_id = dict(self._idx_to_id)
+        existing_id_to_idx = dict(self._id_to_idx)
+
+        # Re-scan to pick up new events
+        scanned_length = self._scan_and_build_index()
+
+        # Restore any mappings that were lost (e.g., for non-UUID event IDs)
+        for idx, evt_id in existing_idx_to_id.items():
+            if idx not in self._idx_to_id:
+                self._idx_to_id[idx] = evt_id
+            if evt_id not in self._id_to_idx:
+                self._id_to_idx[evt_id] = idx
+
+        # Use the higher of scanned length or disk_length
+        self._length = max(scanned_length, disk_length)
 
     def __len__(self) -> int:
         return self._length
