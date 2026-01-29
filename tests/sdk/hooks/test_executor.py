@@ -141,7 +141,9 @@ class TestAsyncHookExecution:
         """Test that async hooks return immediately without waiting."""
         import time
 
-        hook = HookDefinition(command="sleep 5", async_=True)
+        hook = HookDefinition.model_validate(
+            {"command": "sleep 5", "async": True}
+        )
 
         start = time.time()
         result = executor.execute(hook, sample_event)
@@ -153,7 +155,9 @@ class TestAsyncHookExecution:
 
     def test_execute_async_hook_result_fields(self, executor, sample_event):
         """Test that async hook result has expected field values."""
-        hook = HookDefinition(command="echo 'test'", async_=True)
+        hook = HookDefinition.model_validate(
+            {"command": "echo 'test'", "async": True}
+        )
         result = executor.execute(hook, sample_event)
 
         assert result.success is True
@@ -166,8 +170,8 @@ class TestAsyncHookExecution:
     def test_execute_async_hook_process_tracked(self, executor, sample_event, tmp_path):
         """Test that async hooks track processes for cleanup."""
         marker = tmp_path / "async_marker.txt"
-        hook = HookDefinition(
-            command=f"sleep 0.3 && touch {marker}", async_=True, timeout=5
+        hook = HookDefinition.model_validate(
+            {"command": f"sleep 0.3 && touch {marker}", "async": True, "timeout": 5}
         )
 
         result = executor.execute(hook, sample_event)
@@ -186,7 +190,9 @@ class TestAsyncHookExecution:
         """Test that async hooks receive event data on stdin."""
         output_file = tmp_path / "stdin_output.json"
         # Script that reads stdin and writes to file
-        hook = HookDefinition(command=f"cat > {output_file}", async_=True, timeout=5)
+        hook = HookDefinition.model_validate(
+            {"command": f"cat > {output_file}", "async": True, "timeout": 5}
+        )
 
         result = executor.execute(hook, sample_event)
         assert result.async_started
@@ -204,7 +210,9 @@ class TestAsyncHookExecution:
 
     def test_sync_hook_not_marked_async(self, executor, sample_event):
         """Test that synchronous hooks are not marked as async_started."""
-        hook = HookDefinition(command="echo 'sync'", async_=False)
+        hook = HookDefinition.model_validate(
+            {"command": "echo 'sync'", "async": False}
+        )
         result = executor.execute(hook, sample_event)
 
         assert result.success
@@ -218,7 +226,9 @@ class TestAsyncHookExecution:
         marker = tmp_path / "async_ran.txt"
         hooks = [
             HookDefinition(command="echo 'sync1'"),
-            HookDefinition(command=f"touch {marker}", async_=True),
+            HookDefinition.model_validate(
+                {"command": f"touch {marker}", "async": True}
+            ),
             HookDefinition(command="echo 'sync2'"),
         ]
 

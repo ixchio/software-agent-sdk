@@ -240,8 +240,8 @@ class TestAsyncHooks:
         assert hook.async_ is False
 
     def test_async_field_set_true(self):
-        """Test that async can be set to True using async_ parameter."""
-        hook = HookDefinition(command="echo test", async_=True)
+        """Test that async can be set to True using async alias."""
+        hook = HookDefinition.model_validate({"command": "echo test", "async": True})
         assert hook.async_ is True
 
     def test_async_field_parsed_from_json_alias(self):
@@ -260,14 +260,14 @@ class TestAsyncHooks:
 
     def test_async_field_serialization_by_alias(self):
         """Test that async field serializes correctly using alias."""
-        hook = HookDefinition(command="test.sh", async_=True)
+        hook = HookDefinition.model_validate({"command": "test.sh", "async": True})
         output = hook.model_dump(mode="json", by_alias=True)
         assert output["async"] is True
         assert "async_" not in output
 
     def test_async_field_serialization_without_alias(self):
         """Test that async field serializes as async_ without by_alias."""
-        hook = HookDefinition(command="test.sh", async_=True)
+        hook = HookDefinition.model_validate({"command": "test.sh", "async": True})
         output = hook.model_dump(mode="json")
         assert output["async_"] is True
 
