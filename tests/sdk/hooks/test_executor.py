@@ -251,7 +251,7 @@ class TestAsyncProcessManager:
 
         manager = AsyncProcessManager()
 
-        # Start a long-running process
+        # Start a long-running process with new session for process group cleanup
         process = subprocess.Popen(
             "sleep 60",
             shell=True,
@@ -259,6 +259,7 @@ class TestAsyncProcessManager:
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            start_new_session=True,
         )
 
         manager.add_process(process, timeout=30)
@@ -291,6 +292,7 @@ class TestAsyncProcessManager:
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            start_new_session=True,
         )
 
         # Add with a timeout in the past (simulated by setting start time)
@@ -320,6 +322,7 @@ class TestAsyncProcessManager:
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            start_new_session=True,
         )
 
         manager.add_process(process, timeout=60)  # Long timeout

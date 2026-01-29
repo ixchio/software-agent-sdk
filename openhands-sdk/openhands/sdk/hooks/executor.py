@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import signal
 import subprocess
 import time
 
@@ -64,15 +65,29 @@ class AsyncProcessManager:
         self._processes.append((process, time.time(), timeout))
 
     def _terminate_process(self, process: subprocess.Popen) -> None:
-        """Safely terminate a process and prevent zombies."""
+        """Safely terminate a process group and prevent zombies.
+
+        Uses process groups to kill the entire process tree, not just
+        the parent shell when shell=True is used.
+        """
         try:
-            process.terminate()
+            # Kill the entire process group (handles shell=True child processes)
+            pgid = os.getpgid(process.pid)
+        except (OSError, ProcessLookupError) as e:
+            logger.debug(f"Process already terminated: {e}")
+            return
+
+        try:
+            os.killpg(pgid, signal.SIGTERM)
             process.wait(timeout=1)  # Wait for graceful termination
         except subprocess.TimeoutExpired:
-            process.kill()  # Force kill if it doesn't terminate
-            process.wait()
+            try:
+                os.killpg(pgid, signal.SIGKILL)  # Force kill if it doesn't terminate
+                process.wait()
+            except OSError:
+                pass
         except OSError as e:
-            logger.debug(f"Process already terminated: {e}")
+            logger.debug(f"Failed to kill process group: {e}")
 
     def cleanup_expired(self) -> None:
         """Terminate processes that have exceeded their timeout."""
@@ -142,6 +157,7 @@ class HookExecutor:
                     stdin=subprocess.PIPE,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    start_new_session=True,  # Create new process group for cleanup
                 )
                 # Write event JSON to stdin safely
                 try:
@@ -250,6 +266,9 @@ class HookExecutor:
     ) -> list[HookResult]:
         """Execute multiple hooks in order, optionally stopping on block."""
         results: list[HookResult] = []
+
+        # Cleanup expired async processes periodically
+        self.async_process_manager.cleanup_expired()
 
         for hook in hooks:
             result = self.execute(hook, event, env)
