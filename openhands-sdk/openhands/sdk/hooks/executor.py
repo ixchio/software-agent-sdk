@@ -1,8 +1,10 @@
 """Hook executor - runs shell commands with JSON I/O."""
 
 import json
+import logging
 import os
 import subprocess
+import time
 
 from pydantic import BaseModel
 
@@ -26,6 +28,7 @@ class HookResult(BaseModel):
     reason: str | None = None
     additional_context: str | None = None
     error: str | None = None
+    async_started: bool = False  # Indicates this was an async hook
 
     @property
     def should_continue(self) -> bool:
@@ -37,11 +40,55 @@ class HookResult(BaseModel):
         return True
 
 
+logger = logging.getLogger(__name__)
+
+
+class AsyncProcessManager:
+    """Manages background hook processes for cleanup."""
+
+    def __init__(self):
+        self._processes: list[tuple[subprocess.Popen, float, int]] = []
+
+    def add_process(self, process: subprocess.Popen, timeout: int) -> None:
+        """Track a background process for cleanup."""
+        self._processes.append((process, time.time(), timeout))
+
+    def cleanup_expired(self) -> None:
+        """Terminate processes that have exceeded their timeout."""
+        current_time = time.time()
+        active: list[tuple[subprocess.Popen, float, int]] = []
+        for process, start_time, timeout in self._processes:
+            if process.poll() is None:  # Still running
+                if current_time - start_time > timeout:
+                    try:
+                        process.terminate()
+                    except OSError:
+                        pass  # Process may have already exited
+                else:
+                    active.append((process, start_time, timeout))
+        self._processes = active
+
+    def cleanup_all(self) -> None:
+        """Terminate all tracked background processes."""
+        for process, _, _ in self._processes:
+            if process.poll() is None:
+                try:
+                    process.terminate()
+                except OSError:
+                    pass  # Process may have already exited
+        self._processes = []
+
+
 class HookExecutor:
     """Executes hook commands with JSON I/O."""
 
-    def __init__(self, working_dir: str | None = None):
+    def __init__(
+        self,
+        working_dir: str | None = None,
+        async_process_manager: AsyncProcessManager | None = None,
+    ):
         self.working_dir = working_dir or os.getcwd()
+        self.async_process_manager = async_process_manager or AsyncProcessManager()
 
     def execute(
         self,
@@ -64,8 +111,41 @@ class HookExecutor:
         # Serialize event to JSON for stdin
         event_json = event.model_dump_json()
 
+        # Handle async hooks: fire and forget
+        if hook.async_:
+            try:
+                process = subprocess.Popen(
+                    hook.command,
+                    shell=True,
+                    cwd=self.working_dir,
+                    env=hook_env,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                # Write event JSON to stdin and close
+                if process.stdin:
+                    process.stdin.write(event_json.encode())
+                    process.stdin.close()
+
+                # Track for cleanup
+                self.async_process_manager.add_process(process, hook.timeout)
+
+                # Return placeholder success result
+                return HookResult(
+                    success=True,
+                    exit_code=0,
+                    async_started=True,
+                )
+            except Exception as e:
+                return HookResult(
+                    success=False,
+                    exit_code=-1,
+                    error=f"Failed to start async hook: {e}",
+                )
+
         try:
-            # Execute the hook command
+            # Execute the hook command synchronously
             result = subprocess.run(
                 hook.command,
                 shell=True,
