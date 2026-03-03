@@ -354,6 +354,7 @@ ASSISTANT:
 Let me check the current task list first:
 <function=task_tracker>
 <parameter=command>view</parameter>
+<parameter=security_risk>LOW</parameter>
 <parameter=summary>View current task list status</parameter>
 </function>
 """,
@@ -375,6 +376,7 @@ I'll create or update the full plan based on your requirements and current progr
   }
 ]
 </parameter>
+<parameter=security_risk>LOW</parameter>
 <parameter=summary>Update task plan with current progress</parameter>
 </function>
 """,
