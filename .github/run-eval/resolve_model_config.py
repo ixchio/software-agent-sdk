@@ -112,6 +112,13 @@ MODELS = {
             "temperature": 0.0,
         },
     },
+    "claude-opus-4-7": {
+        "id": "claude-opus-4-7",
+        "display_name": "Claude Opus 4.7",
+        "llm_config": {
+            "model": "litellm_proxy/anthropic/claude-opus-4-7",
+        },
+    },
     "claude-sonnet-4-6": {
         "id": "claude-sonnet-4-6",
         "display_name": "Claude Sonnet 4.6",
@@ -239,6 +246,16 @@ MODELS = {
             "model": "litellm_proxy/openrouter/z-ai/glm-5",
             "temperature": 0.0,
             # OpenRouter glm-5 is text-only despite LiteLLM reporting vision support
+            "disable_vision": True,
+        },
+    },
+    "glm-5.1": {
+        "id": "glm-5.1",
+        "display_name": "GLM-5.1",
+        "llm_config": {
+            "model": "litellm_proxy/openrouter/z-ai/glm-5.1",
+            "temperature": 0.0,
+            # OpenRouter glm-5.1 is text-only despite LiteLLM reporting vision support
             "disable_vision": True,
         },
     },
