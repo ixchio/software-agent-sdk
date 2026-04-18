@@ -123,6 +123,7 @@ class DockerWorkspace(RemoteWorkspace):
     )
     health_check_timeout: float = Field(
         default=120.0,
+        gt=0.0,
         description="Timeout in seconds to wait for container health check to pass.",
     )
 
@@ -313,7 +314,7 @@ class DockerWorkspace(RemoteWorkspace):
             except Exception:
                 pass
 
-    def _wait_for_health(self, timeout: float = 120.0) -> None:
+    def _wait_for_health(self, *, timeout: float) -> None:
         """Wait for the Docker container to become healthy."""
         start = time.time()
         # We can construct the health URL based on self.host if available,

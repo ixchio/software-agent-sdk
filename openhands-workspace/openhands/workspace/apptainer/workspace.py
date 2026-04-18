@@ -130,6 +130,7 @@ class ApptainerWorkspace(RemoteWorkspace):
     )
     health_check_timeout: float = Field(
         default=120.0,
+        gt=0.0,
         description="Timeout in seconds to wait for container health check to pass.",
     )
 
@@ -326,7 +327,7 @@ class ApptainerWorkspace(RemoteWorkspace):
             except Exception:
                 pass
 
-    def _wait_for_health(self, timeout: float = 120.0) -> None:
+    def _wait_for_health(self, *, timeout: float) -> None:
         """Wait for the container to become healthy."""
         start = time.time()
         health_url = f"http://127.0.0.1:{self.host_port}/health"

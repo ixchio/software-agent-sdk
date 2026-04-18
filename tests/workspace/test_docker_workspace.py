@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from openhands.workspace import (
     ApptainerWorkspace,
@@ -177,40 +178,56 @@ def test_docker_network(mock_docker_workspace):
         assert run_cmd[network_index + 1] == network_name
 
 
-def test_docker_workspace_health_check_timeout_field_exists():
-    """Test that health_check_timeout is a recognised model field."""
+# ===========================================================================
+# health_check_timeout tests for DockerWorkspace and ApptainerWorkspace
+# ===========================================================================
 
-    assert "health_check_timeout" in DockerWorkspace.model_fields
 
-
-def test_docker_workspace_health_check_timeout_default():
+@pytest.mark.parametrize("cls", [DockerWorkspace, ApptainerWorkspace])
+def test_health_check_timeout_default(cls):
     """Test that health_check_timeout defaults to 120.0 seconds."""
-
-    field = DockerWorkspace.model_fields["health_check_timeout"]
-    assert field.default == 120.0
+    assert cls.model_fields["health_check_timeout"].default == 120.0
 
 
-def test_docker_workspace_health_check_timeout_custom(mock_docker_workspace):
-    """Test that a custom health_check_timeout is forwarded to _wait_for_health."""
+@pytest.mark.parametrize("cls", [DockerWorkspace, ApptainerWorkspace])
+def test_health_check_timeout_rejects_non_positive(cls):
+    """Test that health_check_timeout rejects zero and negative values."""
+    with pytest.raises(ValidationError, match="greater than 0"):
+        # Attempt to create with invalid timeout - we need to mock startup
+        with patch.object(cls, "model_post_init"):
+            cls.model_validate(
+                {"server_image": "test:latest", "health_check_timeout": 0}
+            )
 
-    with patch.object(DockerWorkspace, "_wait_for_health") as mock_wait:
-        with patch.object(DockerWorkspace, "_start_container"):
-            with patch(
-                "openhands.workspace.docker.workspace.execute_command"
-            ) as mock_exec:
-                mock_exec.return_value = Mock(returncode=0, stdout="", stderr="")
-                workspace = DockerWorkspace(
-                    server_image="test:latest", health_check_timeout=60.0
-                )
-        assert workspace.health_check_timeout == 60.0
-        # The field is set; _wait_for_health is called by _start_container which
-        # is mocked, so verify the value round-trips through the model.
-        _ = mock_wait  # referenced to satisfy linters
+    with pytest.raises(ValidationError, match="greater than 0"):
+        with patch.object(cls, "model_post_init"):
+            cls.model_validate(
+                {"server_image": "test:latest", "health_check_timeout": -10.0}
+            )
+
+
+def test_docker_workspace_startup_uses_health_check_timeout():
+    """Test that _start_container passes health_check_timeout to _wait_for_health."""
+    with (
+        patch(
+            "openhands.workspace.docker.workspace.check_port_available",
+            return_value=True,
+        ),
+        patch(
+            "openhands.workspace.docker.workspace.find_available_tcp_port",
+            return_value=8000,
+        ),
+        patch("openhands.workspace.docker.workspace.execute_command") as mock_exec,
+        patch.object(DockerWorkspace, "_wait_for_health") as mock_wait,
+        patch("openhands.workspace.docker.workspace.RemoteWorkspace.model_post_init"),
+    ):
+        mock_exec.return_value = Mock(returncode=0, stdout="container_123", stderr="")
+        DockerWorkspace(server_image="test:latest", health_check_timeout=60.0)
+        mock_wait.assert_called_once_with(timeout=60.0)
 
 
 def test_docker_workspace_resume_uses_health_check_timeout(mock_docker_workspace):
     """Test that resume() passes health_check_timeout to _wait_for_health."""
-
     with patch.object(DockerWorkspace, "_start_container"):
         with patch("openhands.workspace.docker.workspace.execute_command") as mock_exec:
             mock_exec.return_value = Mock(returncode=0, stdout="", stderr="")
@@ -226,27 +243,8 @@ def test_docker_workspace_resume_uses_health_check_timeout(mock_docker_workspace
         mock_wait.assert_called_once_with(timeout=30.0)
 
 
-# ===========================================================================
-# Apptainer health_check_timeout tests (co-located for compactness)
-# ===========================================================================
-
-
-def test_apptainer_workspace_health_check_timeout_field_exists():
-    """Test that health_check_timeout is a recognised model field."""
-
-    assert "health_check_timeout" in ApptainerWorkspace.model_fields
-
-
-def test_apptainer_workspace_health_check_timeout_default():
-    """Test that health_check_timeout defaults to 120.0 seconds."""
-
-    field = ApptainerWorkspace.model_fields["health_check_timeout"]
-    assert field.default == 120.0
-
-
-def test_apptainer_workspace_health_check_timeout_startup_call():
+def test_apptainer_workspace_startup_uses_health_check_timeout():
     """Test that model_post_init passes health_check_timeout to _wait_for_health."""
-
     with (
         patch("openhands.workspace.apptainer.workspace.execute_command") as mock_exec,
         patch(
